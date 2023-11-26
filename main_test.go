@@ -22,11 +22,11 @@ func Test_Deadlock(t *testing.T) {
 		v1.mu.Lock()
 		defer v1.mu.Unlock()
 
-		time.Sleep(2*time.Second)
+		time.Sleep(2 * time.Second)
 		v2.mu.Lock()
 		defer v2.mu.Unlock()
 
-		fmt.Printf("sum=%v\n", v1.value + v2.value)
+		fmt.Printf("sum=%v\n", v1.value+v2.value)
 	}
 
 	var a, b value
@@ -41,7 +41,7 @@ func Test_Deadlock(t *testing.T) {
 func Test_Livelock(t *testing.T) {
 	cadence := sync.NewCond(&sync.Mutex{})
 	go func() {
-		for range time.Tick(1*time.Microsecond) {
+		for range time.Tick(1 * time.Microsecond) {
 			cadence.Broadcast()
 		}
 	}()
@@ -74,7 +74,7 @@ func Test_Livelock(t *testing.T) {
 	// 右によける
 	tryRight := func(out *bytes.Buffer) bool { return tryDir("right", &right, out) }
 
-	walk := func(walking * sync.WaitGroup, name string) {
+	walk := func(walking *sync.WaitGroup, name string) {
 		var out bytes.Buffer
 		defer func() { fmt.Println(out.String()) }()
 		defer walking.Done()
@@ -99,7 +99,7 @@ func Test_Livelock(t *testing.T) {
 func Test_ResourceExhaustion(t *testing.T) {
 	var wg sync.WaitGroup
 	var sharedLock sync.Mutex
-	const runtime = 1*time.Second
+	const runtime = 1 * time.Second
 
 	// 貪欲なワーカー
 	// こまめにロックするよりまとめて3nsをロックすることによって他のワーカーの処理を妨げている
@@ -109,7 +109,7 @@ func Test_ResourceExhaustion(t *testing.T) {
 		var count int
 		for begin := time.Now(); time.Since(begin) <= runtime; {
 			sharedLock.Lock()
-			time.Sleep(3*time.Nanosecond)
+			time.Sleep(3 * time.Nanosecond)
 			sharedLock.Unlock()
 			count++
 		}
@@ -126,15 +126,15 @@ func Test_ResourceExhaustion(t *testing.T) {
 		var count int
 		for begin := time.Now(); time.Since(begin) <= runtime; {
 			sharedLock.Lock()
-			time.Sleep(1*time.Nanosecond)
+			time.Sleep(1 * time.Nanosecond)
 			sharedLock.Unlock()
 
 			sharedLock.Lock()
-			time.Sleep(1*time.Nanosecond)
+			time.Sleep(1 * time.Nanosecond)
 			sharedLock.Unlock()
 
 			sharedLock.Lock()
-			time.Sleep(1*time.Nanosecond)
+			time.Sleep(1 * time.Nanosecond)
 			sharedLock.Unlock()
 
 			count++
@@ -153,7 +153,7 @@ func Test_ResourceExhaustion(t *testing.T) {
 // ゴルーチンが終了する前に親ゴルーチンが終了してまうパターン
 func Test_HelloGoroutine(t *testing.T) {
 	seyHello := func() {
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		fmt.Println("hello")
 	}
 
@@ -165,11 +165,54 @@ func Test_HelloGoroutine2(t *testing.T) {
 	var wg sync.WaitGroup
 	seyHello := func() {
 		defer wg.Done()
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		fmt.Println("hello")
 	}
 
 	wg.Add(1)
 	go seyHello()
+	wg.Wait()
+}
+
+// ゴルーチンが親プロセスと同じアドレス空間を利用してることを証明するロジック
+// salutation変数の元の参照に対して代入されているので結果がwelcomeとなる
+func Test_HelloGoroutine3(t *testing.T) {
+	var wg sync.WaitGroup
+	salutation := "hello"
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(500 * time.Millisecond)
+		salutation = "welcome"
+	}()
+	wg.Wait()
+
+	fmt.Println(salutation)
+}
+
+// ゴルーチンが開始する前にループが完了して「good by」が3回出力される
+// 先にループが終了してもsalutationがスコープ外にならないのは、Goのランタイムがヒープにメモリを移してるから
+func Test_HelloGoroutine4(t *testing.T) {
+	var wg sync.WaitGroup
+	for _, salutation := range []string{"hello", "greetings", "good by"} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fmt.Println(salutation)
+		}()
+	}
+	wg.Wait()
+}
+
+// salutationのコピーをクロージャに渡すことで意図通りの挙動になる
+func Test_HelloGoroutine5(t *testing.T) {
+	var wg sync.WaitGroup
+	for _, salutation := range []string{"hello", "greetings", "good by"} {
+		wg.Add(1)
+		go func(salutation string) {
+			defer wg.Done()
+			fmt.Println(salutation)
+		}(salutation)
+	}
 	wg.Wait()
 }
