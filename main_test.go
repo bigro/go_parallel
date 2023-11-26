@@ -94,3 +94,58 @@ func Test_Livelock(t *testing.T) {
 	go walk(&peopleInHallway, "Barbara")
 	peopleInHallway.Wait()
 }
+
+// リソース枯渇
+func Test_ResourceExhaustion(t *testing.T) {
+	var wg sync.WaitGroup
+	var sharedLock sync.Mutex
+	const runtime = 1*time.Second
+
+	// 貪欲なワーカー
+	// こまめにロックするよりまとめて3nsをロックすることによって他のワーカーの処理を妨げている
+	greedyWorker := func() {
+		defer wg.Done()
+
+		var count int
+		for begin := time.Now(); time.Since(begin) <= runtime; {
+			sharedLock.Lock()
+			time.Sleep(3*time.Nanosecond)
+			sharedLock.Unlock()
+			count++
+		}
+
+		fmt.Printf("Greedy worker was able to execute %v work loops\n", count)
+	}
+
+	// 行儀が良いワーカー
+	// 必要な時に1ns毎でロックすることによって他のワーカーの処理を妨げない
+	// 貪欲なワーカーのせいで処理能力が落ちている
+	politeWorker := func() {
+		defer wg.Done()
+
+		var count int
+		for begin := time.Now(); time.Since(begin) <= runtime; {
+			sharedLock.Lock()
+			time.Sleep(1*time.Nanosecond)
+			sharedLock.Unlock()
+
+			sharedLock.Lock()
+			time.Sleep(1*time.Nanosecond)
+			sharedLock.Unlock()
+
+			sharedLock.Lock()
+			time.Sleep(1*time.Nanosecond)
+			sharedLock.Unlock()
+
+			count++
+		}
+
+		fmt.Printf("Polite worker was able to execute %v work loops.\n", count)
+	}
+
+	wg.Add(2)
+	go greedyWorker()
+	go politeWorker()
+
+	wg.Wait()
+}
