@@ -244,3 +244,37 @@ func Test_HelloGoroutine6(t *testing.T) {
 	after := memConsumed()
 	fmt.Printf("%.3fkb", float64(after-before)/numGoroutines/1000)
 }
+
+// ゴルーチンのコンテキストスイッチにかかるコストを計測
+func BenchmarkContextSwitch(b *testing.B) {
+	var wg sync.WaitGroup
+	begin := make(chan struct{})
+	c := make(chan struct{})
+
+	var token struct{}
+	sender := func() {
+		defer wg.Done()
+		// ゴルーチン生成を計測に含まないようにここから計測
+		<-begin
+		for i := 0; i < b.N; i++ {
+			c <- token
+		}
+	}
+	receiver := func() {
+		defer wg.Done()
+		<-begin
+		for i := 0; i < b.N; i++ {
+			<-c
+		}
+	}
+
+	wg.Add(2)
+	// ゴルーチンを生成
+	go sender()
+	go receiver()
+	// タイマーを開始
+	b.StartTimer()
+	// コンテキストスイッチが発生する処理を開始
+	close(begin)
+	wg.Wait()
+}
