@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -215,4 +216,31 @@ func Test_HelloGoroutine5(t *testing.T) {
 		}(salutation)
 	}
 	wg.Wait()
+}
+
+// ゴルーチンで使用されるメモリを計測
+func Test_HelloGoroutine6(t *testing.T) {
+	// メモリの計測
+	memConsumed := func() uint64 {
+		runtime.GC()
+		var s runtime.MemStats
+		runtime.ReadMemStats(&s)
+		return s.Sys
+	}
+
+	var c <-chan interface{}
+	var wg sync.WaitGroup
+	// 終わらないクロージャ
+	noop := func() { wg.Done(); <-c }
+
+	// 10の4乗分のゴルーチンを立ち上げる
+	const numGoroutines = 1e4
+	wg.Add(numGoroutines)
+	before := memConsumed()
+	for i := numGoroutines; i > 0; i-- {
+		go noop()
+	}
+	wg.Wait()
+	after := memConsumed()
+	fmt.Printf("%.3fkb", float64(after-before)/numGoroutines/1000)
 }
