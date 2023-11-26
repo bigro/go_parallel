@@ -149,3 +149,27 @@ func Test_ResourceExhaustion(t *testing.T) {
 
 	wg.Wait()
 }
+
+// ゴルーチンが終了する前に親ゴルーチンが終了してまうパターン
+func Test_HelloGoroutine(t *testing.T) {
+	seyHello := func() {
+		time.Sleep(500*time.Millisecond)
+		fmt.Println("hello")
+	}
+
+	go seyHello()
+}
+
+// 合流ポイントを作成してゴルーチンが終わるまで親ゴルーチンが終了しない
+func Test_HelloGoroutine2(t *testing.T) {
+	var wg sync.WaitGroup
+	seyHello := func() {
+		defer wg.Done()
+		time.Sleep(500*time.Millisecond)
+		fmt.Println("hello")
+	}
+
+	wg.Add(1)
+	go seyHello()
+	wg.Wait()
+}
