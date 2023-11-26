@@ -1,7 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func main() {
-	fmt.Println("Hello, world!")
+	var data int
+	go func()  {
+		data++
+	}()
+
+	if data == 0 {
+		fmt.Printf("the value is %v. \n", data)
+	}
 }
