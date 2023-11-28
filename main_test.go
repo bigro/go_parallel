@@ -278,3 +278,28 @@ func BenchmarkContextSwitch(b *testing.B) {
 	close(begin)
 	wg.Wait()
 }
+
+func Test_WaitGroup(t *testing.T) {
+	var wg sync.WaitGroup
+
+	// WaitGroupに渡された整数分、DoneされるのをWaitメソッドで待つ
+	// ゴルーチン内でAddメソッドを呼ぶとWaitまで辿り着くまでにゴルーチンが起動されないことがあるので、必ずゴルーチン外でAddする
+	wg.Add(1)
+	go func() {
+		// メソッドが終了したらDoneする
+		defer wg.Done()
+		fmt.Println("1st goroutine sleeping...")
+		time.Sleep(1)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("2nd goroutine sleeping...")
+		time.Sleep(2)
+	}()
+
+	// Addで追加された整数分、Doneされるまでブロックする
+	wg.Wait()
+	fmt.Println("All goroutines complete")
+}
